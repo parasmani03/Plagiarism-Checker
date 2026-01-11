@@ -1326,6 +1326,19 @@ class PlagiarismChecker {
 
     async exportResults() {
         try {
+            // Check if user is logged in
+            if (!this.currentUser) {
+                // Store the current URL to redirect back after login
+                sessionStorage.setItem('redirectAfterLogin', window.location.href);
+                // Show notification
+                this.showNotification('Please log in to export results', 'error');
+                // Redirect to login page after a short delay
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+                return;
+            }
+
             // Get all the analysis data
             const sourceText = document.getElementById('source-text').value;
             const plagiarismPercentage = document.getElementById('plagiarism-percentage').textContent;

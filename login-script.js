@@ -36,8 +36,9 @@ class LoginManager {
         // Check if user is already logged in
         window.onAuthStateChanged(window.firebaseAuth, (user) => {
             if (user) {
-                // User is already logged in, redirect to main page
-                window.location.href = 'index.html';
+                // User is already logged in, redirect to appropriate page
+                const redirectUrl = sessionStorage.getItem('redirectAfterLogin') || 'index.html';
+                window.location.href = redirectUrl;
             }
         });
     }
@@ -71,9 +72,15 @@ class LoginManager {
                 loginTime: new Date().toISOString()
             }));
 
+            // Get the redirect URL if it exists
+            const redirectUrl = sessionStorage.getItem('redirectAfterLogin') || 'index.html';
+            
+            // Clear the redirect URL from storage
+            sessionStorage.removeItem('redirectAfterLogin');
+            
             // Redirect after delay
             setTimeout(() => {
-                window.location.href = 'index.html';
+                window.location.href = redirectUrl;
             }, 1500);
 
         } catch (error) {
@@ -151,9 +158,15 @@ class LoginManager {
                 loginTime: new Date().toISOString()
             }));
 
+            // Get the redirect URL if it exists
+            const redirectUrl = sessionStorage.getItem('redirectAfterLogin') || 'index.html';
+            
+            // Clear the redirect URL from storage
+            sessionStorage.removeItem('redirectAfterLogin');
+            
             // Redirect after delay
             setTimeout(() => {
-                window.location.href = 'index.html';
+                window.location.href = redirectUrl;
             }, 1500);
 
         } catch (error) {
