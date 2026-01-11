@@ -8,36 +8,71 @@ class PlagiarismChecker {
     }
 
     initializeEventListeners() {
-        // Login button
-        document.getElementById('login-btn').addEventListener('click', () => this.openLoginPage());
-
-        // History button
-        document.getElementById('history-btn').addEventListener('click', () => this.showHistory());
-
-        // Check button
-        document.getElementById('check-plagiarism').addEventListener('click', () => this.checkPlagiarism());
-
-        // Clear button
-        document.getElementById('clear-text').addEventListener('click', () => this.clearText());
-
-        // Word counter
-        document.getElementById('source-text').addEventListener('input', () => this.updateWordCounter());
-
-        // Action buttons
-        document.getElementById('new-check').addEventListener('click', () => this.newCheck());
-        document.getElementById('export-results').addEventListener('click', () => this.exportResults());
-
-        // Modal close button
-        document.getElementById('close-history').addEventListener('click', () => this.closeHistory());
-
-        // Clear history button
-        document.getElementById('clear-history').addEventListener('click', () => this.clearHistory());
-
-        // Close modal on overlay click
-        document.getElementById('history-modal').addEventListener('click', (e) => {
-            if (e.target.id === 'history-modal') {
-                this.closeHistory();
+        // Use event delegation for all interactive elements
+        document.addEventListener('click', (e) => {
+            // Handle history button click
+            if (e.target.closest('#history-btn')) {
+                e.preventDefault();
+                this.showHistory();
+                return;
             }
+            
+            // Handle logout button click
+            if (e.target.closest('#logout-btn') || e.target.closest('.logout-btn-bottom')) {
+                e.preventDefault();
+                this.logout();
+                return;
+            }
+            
+            // Handle login button click
+            if (e.target.closest('#login-btn')) {
+                e.preventDefault();
+                this.openLoginPage();
+                return;
+            }
+            
+            // Handle close history modal
+            if (e.target.closest('#close-history') || (e.target.id === 'history-modal' && !e.target.closest('.modal-content'))) {
+                e.preventDefault();
+                this.closeHistory();
+                return;
+            }
+            
+            // Handle clear history button
+            if (e.target.closest('#clear-history')) {
+                e.preventDefault();
+                this.clearHistory();
+                return;
+            }
+        });
+
+        // Form submission and other non-delegated events
+        const checkPlagiarismBtn = document.getElementById('check-plagiarism');
+        const clearTextBtn = document.getElementById('clear-text');
+        const sourceText = document.getElementById('source-text');
+        const newCheckBtn = document.getElementById('new-check');
+        const exportResultsBtn = document.getElementById('export-results');
+        
+        if (checkPlagiarismBtn) checkPlagiarismBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.checkPlagiarism();
+        });
+        
+        if (clearTextBtn) clearTextBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.clearText();
+        });
+        
+        if (sourceText) sourceText.addEventListener('input', () => this.updateWordCounter());
+        
+        if (newCheckBtn) newCheckBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.newCheck();
+        });
+        
+        if (exportResultsBtn) exportResultsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.exportResults();
         });
     }
 
@@ -63,8 +98,6 @@ class PlagiarismChecker {
     }
 
     updateLoginButton() {
-        const loginBtn = document.getElementById('login-btn');
-        const historyBtn = document.getElementById('history-btn');
         const headerActions = document.querySelector('.header-actions');
         
         if (this.currentUser) {
@@ -83,9 +116,14 @@ class PlagiarismChecker {
                 </div>
             `;
             
-            // Add logout button to bottom left
-            const logoutBtn = document.createElement('button');
-            logoutBtn.className = 'logout-btn-bottom';
+            // Add or update logout button
+            let logoutBtn = document.querySelector('.logout-btn-bottom');
+            if (!logoutBtn) {
+                logoutBtn = document.createElement('button');
+                logoutBtn.className = 'logout-btn-bottom';
+                document.body.appendChild(logoutBtn);
+            }
+            
             logoutBtn.id = 'logout-btn';
             logoutBtn.innerHTML = `
                 <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -95,13 +133,6 @@ class PlagiarismChecker {
                 </svg>
                 Logout
             `;
-            
-            // Add logout button to bottom left of the page
-            document.body.appendChild(logoutBtn);
-            
-            // Add event listeners
-            document.getElementById('logout-btn').addEventListener('click', () => this.logout());
-            document.getElementById('history-btn').addEventListener('click', () => this.showHistory());
         } else {
             // Show login button only
             headerActions.innerHTML = `
@@ -115,33 +146,73 @@ class PlagiarismChecker {
                 </button>
             `;
             
-            // Add login event listener
-            document.getElementById('login-btn').addEventListener('click', () => this.openLoginPage());
+            // Remove logout button if exists
+            const logoutBtn = document.querySelector('.logout-btn-bottom');
+            if (logoutBtn) {
+                logoutBtn.remove();
+            }
         }
+    }
+
+    ensureAnalysisHasRequiredFields(analysis) {
+        // Ensure analysis has all required fields with default values if missing
+        return {
+            plagiarismScore: analysis.plagiarismScore || 0,
+            humanWriteScore: analysis.humanWriteScore || 0,
+            repeatedPhrases: analysis.repeatedPhrases || [],
+            humanPatterns: analysis.humanPatterns || [],
+            webSources: analysis.webSources || [],
+            // Add any other required fields with defaults
+            ...analysis // Spread the original analysis to override any defaults if they exist
+        };
     }
 
     saveToHistory(text, analysis) {
         if (!this.currentUser) return;
         
+        // Ensure analysis has all required fields
+        const safeAnalysis = this.ensureAnalysisHasRequiredFields(analysis);
+        
         const historyItem = {
             id: Date.now(),
-            text: text,
-            analysis: analysis,
+            text: text.substring(0, 200) + (text.length > 200 ? '...' : ''), // Truncate long text
+            fullText: text, // Store full text separately
+            analysis: safeAnalysis,
             timestamp: new Date().toISOString(),
-            userId: this.currentUser.uid
+            userId: this.currentUser.uid,
+            isExported: false // Default to false, will be true for exported reports
         };
         
-        // Get existing history
-        const history = this.getHistory();
-        history.unshift(historyItem);
-        
-        // Keep only last 50 items
-        if (history.length > 50) {
-            history.splice(50);
+        try {
+            // Get existing history
+            const history = this.getHistory();
+            
+            // Check if this exact text was already analyzed recently (within last 5 minutes)
+            const now = new Date();
+            const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+            
+            const isDuplicate = history.some(item => {
+                const itemDate = new Date(item.timestamp);
+                return item.text === historyItem.text && itemDate > fiveMinutesAgo;
+            });
+            
+            if (!isDuplicate) {
+                history.unshift(historyItem);
+                
+                // Keep only last 50 items
+                if (history.length > 50) {
+                    history.splice(50);
+                }
+                
+                // Save to localStorage
+                localStorage.setItem(`plagiarism_history_${this.currentUser.uid}`, JSON.stringify(history));
+                return true; // Indicate success
+            }
+            return false; // Indicate duplicate was found
+        } catch (error) {
+            console.error('Error saving to history:', error);
+            return false;
         }
-        
-        // Save to localStorage
-        localStorage.setItem(`plagiarism_history_${this.currentUser.uid}`, JSON.stringify(history));
     }
 
     getHistory() {
@@ -156,54 +227,139 @@ class PlagiarismChecker {
         const historyList = document.getElementById('history-list');
         const emptyHistory = document.getElementById('empty-history');
         
-        const history = this.getHistory();
-        
-        if (history.length === 0) {
-            historyList.style.display = 'none';
-            emptyHistory.style.display = 'block';
-        } else {
-            historyList.style.display = 'flex';
-            emptyHistory.style.display = 'none';
-            
-            historyList.innerHTML = '';
-            history.forEach(item => {
-                const historyElement = this.createHistoryElement(item);
-                historyList.appendChild(historyElement);
-            });
+        if (!modal || !historyList || !emptyHistory) {
+            console.error('Required history elements not found');
+            return;
         }
         
-        modal.style.display = 'flex';
+        try {
+            const history = this.getHistory();
+            
+            if (!history || history.length === 0) {
+                historyList.style.display = 'none';
+                emptyHistory.style.display = 'block';
+            } else {
+                // Clear existing content
+                historyList.innerHTML = '';
+                historyList.style.display = 'flex';
+                emptyHistory.style.display = 'none';
+                
+                // Add each history item
+                history.forEach(item => {
+                    try {
+                        const historyElement = this.createHistoryElement(item);
+                        if (historyElement) {
+                            historyList.appendChild(historyElement);
+                        }
+                    } catch (error) {
+                        console.error('Error creating history element:', error);
+                    }
+                });
+                
+                // If no valid items were added, show empty state
+                if (historyList.children.length === 0) {
+                    historyList.style.display = 'none';
+                    emptyHistory.style.display = 'block';
+                }
+            }
+            
+            // Show the modal
+            modal.style.display = 'flex';
+            
+            // Add click handler to close when clicking outside content
+            const modalContent = modal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.onclick = (e) => e.stopPropagation();
+            }
+            
+            // Close button
+            const closeBtn = modal.querySelector('.close');
+            if (closeBtn) {
+                closeBtn.onclick = () => this.closeHistory();
+            }
+            
+            // Clear history button
+            const clearBtn = document.getElementById('clear-history');
+            if (clearBtn) {
+                clearBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.clearHistory();
+                };
+            }
+            
+        } catch (error) {
+            console.error('Error showing history:', error);
+            this.showNotification('Error loading history', 'error');
+        }
     }
 
     createHistoryElement(item) {
         const element = document.createElement('div');
         element.className = 'history-item';
         
-        const date = new Date(item.timestamp);
-        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        try {
+            const date = new Date(item.timestamp);
+            const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            // Ensure we have valid analysis data
+            const analysis = item.analysis || {};
+            const repeatedPhrases = analysis.repeatedPhrases || [];
+            const text = item.text || '';
+            
+            // Create a preview of the text (first 100 chars)
+            const previewText = text.length > 100 ? text.substring(0, 100) + '...' : text;
+            
+            element.innerHTML = `
+                <div class="history-item-header">
+                    <div class="history-header-left">
+                        <span class="history-date">${formattedDate}</span>
+                        ${item.isExported ? '<span class="exported-badge">Exported</span>' : ''}
+                    </div>
+                    <button class="history-delete-btn" title="Delete this item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="history-text" title="${text.replace(/"/g, '&quot;')}">${previewText}</div>
+                <div class="history-meta">
+                    <span class="history-meta-item">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4"></path>
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                        </svg>
+                        ${repeatedPhrases.length} ${repeatedPhrases.length === 1 ? 'pattern' : 'patterns'}
+                    </span>
+                    <span class="history-meta-item">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                        ${text.length} chars
+                    </span>
+                </div>
+            `;
+            
+            // Add click handler to load this history item
+            element.addEventListener('click', (e) => {
+                // Don't trigger if clicking on the delete button
+                if (!e.target.closest('.history-delete-btn')) {
+                    this.loadFromHistory(item);
+                }
+            });
+            
+            // Add click handler for the delete button
+            const deleteBtn = element.querySelector('.history-delete-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => this.deleteHistoryItem(item.id, e));
+            }
+            
+        } catch (error) {
+            console.error('Error creating history element:', error);
+            element.innerHTML = '<div class="history-error">Error loading this history item</div>';
+        }
         
-        element.innerHTML = `
-            <div class="history-item-header">
-                <span class="history-date">${formattedDate}</span>
-            </div>
-            <div class="history-text">${item.text}</div>
-            <div class="history-meta">
-                <span class="history-meta-item">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 11l3 3L22 4"></path>
-                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
-                    </svg>
-                    ${item.analysis.repeatedPhrases.length} patterns
-                </span>
-                <span class="history-meta-item">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 20h9"></path>
-                        <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                    </svg>
-                    ${item.text.length} chars
-                </span>
-            </div>
-        `;
+        return element;
         
         element.addEventListener('click', () => {
             this.loadFromHistory(item);
@@ -226,27 +382,67 @@ class PlagiarismChecker {
         document.getElementById('history-modal').style.display = 'none';
     }
 
+    deleteHistoryItem(itemId, event) {
+        if (event) {
+            event.stopPropagation(); // Prevent triggering the item click
+        }
+        
+        if (!this.currentUser) return;
+        
+        if (confirm('Are you sure you want to delete this history item?')) {
+            try {
+                const history = this.getHistory();
+                const updatedHistory = history.filter(item => item.id !== itemId);
+                
+                localStorage.setItem(`plagiarism_history_${this.currentUser.uid}`, JSON.stringify(updatedHistory));
+                this.showHistory(); // Refresh the display
+                this.showNotification('History item deleted', 'success');
+            } catch (error) {
+                console.error('Error deleting history item:', error);
+                this.showNotification('Error deleting history item', 'error');
+            }
+        }
+    }
+
     clearHistory() {
         if (!this.currentUser) return;
         
         if (confirm('Are you sure you want to clear all search history? This action cannot be undone.')) {
-            localStorage.removeItem(`plagiarism_history_${this.currentUser.uid}`);
-            this.showHistory(); // Refresh the display
-            this.showNotification('History cleared successfully', 'success');
+            try {
+                localStorage.removeItem(`plagiarism_history_${this.currentUser.uid}`);
+                this.showHistory(); // Refresh the display
+                this.showNotification('History cleared successfully', 'success');
+            } catch (error) {
+                console.error('Error clearing history:', error);
+                this.showNotification('Error clearing history', 'error');
+            }
         }
     }
 
     async logout() {
         try {
-            // Sign out from Firebase
-            await window.signOut(window.firebaseAuth);
-            
-            // Clear sessionStorage
-            sessionStorage.removeItem('currentUser');
-            this.currentUser = null;
-            
-            // Redirect to login page
-            window.location.href = 'login.html';
+            // Show loading state
+            const logoutBtn = document.querySelector('#logout-btn, .logout-btn-bottom');
+            if (logoutBtn) {
+                const originalText = logoutBtn.innerHTML;
+                logoutBtn.innerHTML = 'Logging out...';
+                logoutBtn.disabled = true;
+                
+                // Add a small delay to show the loading state
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Sign out from Firebase
+                if (window.firebaseAuth) {
+                    await window.signOut(window.firebaseAuth);
+                }
+                
+                // Clear sessionStorage
+                sessionStorage.removeItem('currentUser');
+                this.currentUser = null;
+                
+                // Redirect to login page
+                window.location.href = 'login.html';
+            }
         } catch (error) {
             console.error('Logout error:', error);
             // Fallback: clear local session and redirect
@@ -738,32 +934,43 @@ class PlagiarismChecker {
 
         // Show loading state
         const checkBtn = document.getElementById('check-plagiarism');
+        const originalBtnContent = checkBtn.innerHTML;
         checkBtn.disabled = true;
         checkBtn.innerHTML = '<span>Analyzing...</span>';
 
-        // Simulate processing time for better UX
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        try {
+            // Simulate processing time for better UX
+            await new Promise(resolve => setTimeout(resolve, 1500));
 
-        const processedText = this.preprocessText(sourceText);
-        const analysis = this.analyzeText(processedText, sourceText);
+            const processedText = this.preprocessText(sourceText);
+            const analysis = this.analyzeText(processedText, sourceText);
 
-        // Search for web sources
-        const webSources = await this.searchWebSources(sourceText);
-        analysis.webSources = webSources;
+            // Search for web sources
+            const webSources = await this.searchWebSources(sourceText);
+            analysis.webSources = webSources;
 
-        // Save to history (only if user is logged in)
-        this.saveToHistory(sourceText, analysis);
+            // Display results first
+            this.displayResults(analysis, sourceText);
 
-        this.displayResults(analysis, sourceText);
-
-        checkBtn.disabled = false;
-        checkBtn.innerHTML = `
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-            </svg>
-            Check for Plagiarism
-        `;
+            // Then save to history if user is logged in
+            if (this.currentUser) {
+                const saved = this.saveToHistory(sourceText, analysis);
+                if (saved) {
+                    this.showNotification('Analysis saved to history', 'success');
+                } else {
+                    this.showNotification('Similar analysis was already saved recently', 'info');
+                }
+            } else {
+                this.showNotification('Sign in to save your analysis history', 'info');
+            }
+        } catch (error) {
+            console.error('Error during plagiarism check:', error);
+            this.showNotification('An error occurred during analysis', 'error');
+        } finally {
+            // Always restore the button state
+            checkBtn.disabled = false;
+            checkBtn.innerHTML = originalBtnContent;
+        }
     }
 
     displayResults(analysis, sourceText) {
@@ -1117,31 +1324,95 @@ class PlagiarismChecker {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    exportResults() {
-        // const writingType = document.getElementById('writing-type').textContent;
-        const writingType = document.getElementById('results').textContent;
-        const results = {
-            timestamp: new Date().toISOString(),
-            writingType: writingType
-        };
-
-        const repeatedPhrasesElements = document.querySelectorAll('.matched-phrase');
-        if (repeatedPhrasesElements.length > 0) {
-            results.repeatedPhrases = Array.from(repeatedPhrasesElements)
-                .map(el => el.textContent.replace(/"/g, '').split(' (repeated')[0]);
+    async exportResults() {
+        try {
+            // Get all the analysis data
+            const sourceText = document.getElementById('source-text').value;
+            const plagiarismPercentage = document.getElementById('plagiarism-percentage').textContent;
+            const humanPercentage = document.getElementById('human-percentage').textContent;
+            const timestamp = new Date().toLocaleString();
+            
+            // Get matched phrases
+            const matchedPhrases = Array.from(document.querySelectorAll('.matched-phrase'))
+                .map(el => el.textContent);
+            
+            // Create a new PDF document
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Add title
+            doc.setFontSize(22);
+            doc.setTextColor(59, 130, 246); // Blue color
+            doc.text('Plagiarism Analysis Report', 105, 20, { align: 'center' });
+            
+            // Add date and time
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Generated on: ${timestamp}`, 105, 30, { align: 'center' });
+            
+            // Add scores
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Analysis Results', 14, 50);
+            
+            // Add plagiarism score
+            doc.setFillColor(239, 68, 68); // Red for plagiarism
+            doc.rect(20, 60, 80, 10, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.text(`Plagiarism: ${plagiarismPercentage}`, 25, 67);
+            
+            // Add human write score
+            doc.setFillColor(16, 185, 129); // Green for human write
+            doc.rect(110, 60, 80, 10, 'F');
+            doc.text(`Human Write: ${humanPercentage}`, 118, 67);
+            
+            // Add original text
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(12);
+            doc.text('Original Text:', 14, 90);
+            doc.setFontSize(10);
+            const splitText = doc.splitTextToSize(sourceText, 180);
+            doc.text(splitText, 14, 100);
+            
+            // Add matched phrases if any
+            if (matchedPhrases.length > 0) {
+                doc.addPage();
+                doc.setFontSize(14);
+                doc.text('Detected Patterns', 14, 20);
+                doc.setFontSize(10);
+                
+                let yPos = 30;
+                matchedPhrases.forEach((phrase, index) => {
+                    if (yPos > 280) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    doc.text(`• ${phrase}`, 20, yPos);
+                    yPos += 10; // Move down for the next line
+                });
+            }
+            
+            // Save the PDF
+            const fileName = `plagiarism-report-${new Date().getTime()}.pdf`;
+            doc.save(fileName);
+            
+            // Save to history
+            const analysis = {
+                timestamp: new Date().toISOString(),
+                plagiarismScore: parseFloat(plagiarismPercentage),
+                humanWriteScore: parseFloat(humanPercentage),
+                matchedPhrases: matchedPhrases,
+                isExported: true,
+                exportFileName: fileName
+            };
+            
+            this.saveToHistory(sourceText, analysis);
+            this.showNotification('PDF report generated and saved to history', 'success');
+            
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            this.showNotification('Error generating PDF report', 'error');
         }
-
-        const dataStr = JSON.stringify(results, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-
-        const exportFileDefaultName = `text-analysis-${Date.now()}.json`;
-
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
-
-        this.showNotification('Results exported successfully', 'success');
     }
 
     showNotification(message, type) {
