@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plagiarism Checker - Detect Content Similarity</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyASOlbK6e8Sh5b1E56RlKj_i59o-Pyo6MI",
+            authDomain: "plagiarismchecker-614dd.firebaseapp.com",
+            projectId: "plagiarismchecker-614dd",
+            storageBucket: "plagiarismchecker-614dd.firebasestorage.app",
+            messagingSenderId: "309270574508",
+            appId: "1:309270574508:web:59090b1116031d29b4f609",
+            measurementId: "G-8971LW32X8"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+
+        // Make auth available globally
+        window.firebaseAuth = auth;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.signOut = signOut;
+        window.onAuthStateChanged = onAuthStateChanged;
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                </svg>
+                <h1>Plagiarism Checker</h1>
+            </div>
+            <div class="header-actions">
+                <button class="login-btn" id="login-btn">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"></path>
+                        <polyline points="10 17 15 12 10 7"></polyline>
+                        <line x1="15" y1="12" x2="3" y2="12"></line>
+                    </svg>
+                    Login
+                </button>
+                <button class="history-btn" id="history-btn" style="display: none;">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    History
+                </button>
+            </div>
+            <p class="subtitle">Advanced content similarity detection tool</p>
+        </header>
+
+        <main class="main-content">
+            <div class="input-section">
+                <div class="input-content">
+                    <div class="input-group">
+                        <label for="source-text">Enter Your Text</label>
+                        <div class="textarea-wrapper">
+                            <textarea id="source-text" placeholder="Enter or paste your text to analyze..." maxlength="1000"></textarea>
+                            <div class="word-counter">
+                                <span id="word-count">0</span> / 1000 characters
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div class="button-container">
+                <button class="clear-btn" id="clear-text">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18"></path>
+                        <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"></path>
+                    </svg>
+                    Clear Text
+                </button>
+                <button class="check-btn" id="check-plagiarism">
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    Check for Plagiarism
+                </button>
+            </div>
+            </div>
+
+            <div class="results-section" id="results" style="display: none;">
+                <h2>Analysis Results</h2>
+                
+                <div class="result-card">
+                    <div class="analysis-report">
+                        <div class="analysis-section">
+                            <h3>Plagiarism Score</h3>
+                            <div class="circular-progress">
+                                <svg class="progress-ring" width="120" height="120">
+                                    <circle class="progress-bg" stroke="#e5e7eb" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"></circle>
+                                    <circle class="progress-bar plagiarism-bar" stroke="#ef4444" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"></circle>
+                                </svg>
+                                <div class="progress-text">
+                                    <span class="percentage" id="plagiarism-percentage">0%</span>
+                                    <span class="label">Plagiarized</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="analysis-section">
+                            <h3>Human Write Score</h3>
+                            <div class="circular-progress">
+                                <svg class="progress-ring" width="120" height="120">
+                                    <circle class="progress-bg" stroke="#e5e7eb" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"></circle>
+                                    <circle class="progress-bar human-bar" stroke="#10b981" stroke-width="8" fill="transparent" r="52" cx="60" cy="60"></circle>
+                                </svg>
+                                <div class="progress-text">
+                                    <span class="percentage" id="human-percentage">0%</span>
+                                    <span class="label">Human Write</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="matched-content" id="matched-content" style="display: none;">
+                    <h3>Detected Patterns</h3>
+                    <div class="matched-phrases" id="matched-phrases"></div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="secondary-btn" id="new-check">New Check</button>
+                    <button class="primary-btn" id="export-results">Export Results</button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 Plagiarism Checker. Built with advanced text analysis algorithms.</p>
+        </footer>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal-overlay" id="history-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Search History</h2>
+                <button class="modal-close" id="close-history">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="history-controls">
+                    <button class="clear-history-btn" id="clear-history">Clear All History</button>
+                </div>
+                <div class="history-list" id="history-list">
+                    <!-- History items will be added here dynamically -->
+                </div>
+                <div class="empty-history" id="empty-history" style="display: none;">
+                    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <p>No search history yet</p>
+                    <p class="empty-subtitle">Your analyzed texts will appear here</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="javascript.js"></script>
+    <script type="module" src="index.js"></script>
+</body>
+</html>
