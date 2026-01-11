@@ -1099,6 +1099,10 @@ class PlagiarismChecker {
         document.getElementById('source-text').value = '';
         this.updateWordCounter();
         this.showNotification('Text cleared', 'success');
+        
+        // Hide analysis results
+        document.getElementById('results').style.display = 'none';
+        document.getElementById('matched-content').style.display = 'none';
     }
 
     newCheck() {

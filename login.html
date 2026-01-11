@@ -64,9 +64,17 @@
                             <label for="login-email">Email Address</label>
                             <input type="email" id="login-email" placeholder="Enter your email" required>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group password-container">
                             <label for="login-password">Password</label>
-                            <input type="password" id="login-password" placeholder="Enter your password" required>
+                            <div class="password-input-container">
+                                <input type="password" id="login-password" placeholder="Enter your password" required>
+                                <span class="toggle-password" data-target="login-password">
+                                    <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </span>
+                            </div>
                         </div>
                         <button type="submit" class="submit-btn">
                             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -85,13 +93,29 @@
                             <label for="register-email">Email Address</label>
                             <input type="email" id="register-email" placeholder="Enter your email" required>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group password-container">
                             <label for="register-password">Password</label>
-                            <input type="password" id="register-password" placeholder="Create a password" required>
+                            <div class="password-input-container">
+                                <input type="password" id="register-password" placeholder="Create a password" required>
+                                <span class="toggle-password" data-target="register-password">
+                                    <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </span>
+                            </div>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group password-container">
                             <label for="confirm-password">Confirm Password</label>
-                            <input type="password" id="confirm-password" placeholder="Confirm your password" required>
+                            <div class="password-input-container">
+                                <input type="password" id="confirm-password" placeholder="Confirm your password" required>
+                                <span class="toggle-password" data-target="confirm-password">
+                                    <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </span>
+                            </div>
                         </div>
                         <button type="submit" class="submit-btn">
                             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -111,6 +135,76 @@
         </div>
     </div>
 
+    <style>
+        .password-container {
+            position: relative;
+        }
+        
+        .password-input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .password-input-container input {
+            width: 100%;
+            padding-right: 40px;
+        }
+        
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            cursor: pointer;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+        }
+        
+        .toggle-password:hover {
+            color: #4b5563;
+        }
+        
+        .eye-icon {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .password-hide {
+            display: none;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Toggle password visibility
+            document.querySelectorAll('.toggle-password').forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    const input = document.getElementById(targetId);
+                    const isPassword = input.type === 'password';
+                    
+                    // Toggle input type
+                    input.type = isPassword ? 'text' : 'password';
+                    
+                    // Toggle eye icon
+                    const eyeIcon = this.querySelector('.eye-icon');
+                    if (isPassword) {
+                        eyeIcon.innerHTML = `
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                            <line x1="1" y1="1" x2="23" y2="23"></line>
+                        `;
+                    } else {
+                        eyeIcon.innerHTML = `
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        `;
+                    }
+                });
+            });
+        });
+    </script>
     <script src="login-script.js"></script>
 </body>
 </html>
